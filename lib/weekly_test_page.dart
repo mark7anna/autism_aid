@@ -1,11 +1,6 @@
-import 'dart:convert';
-import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_sound/flutter_sound.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:googleapis/speech/v1.dart' as speech;
-import 'package:googleapis_auth/auth_io.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class WeeklyTestPage extends StatefulWidget {
   @override
@@ -13,195 +8,72 @@ class WeeklyTestPage extends StatefulWidget {
 }
 
 class _WeeklyTestPageState extends State<WeeklyTestPage> {
-  FlutterSoundRecorder? _recorder;
-  FlutterSoundPlayer? _player;
-  final String _currentQuestion = 'blah';
-  String _recordedAnswer = '';
-  String _correctAnswer = 'Paris';
-  String _userTranscription = '';
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+  String _spokenText = '';
+  final String _correctAnswer = 'cat'; // Example correct answer
 
   @override
   void initState() {
     super.initState();
-    _recorder = FlutterSoundRecorder();
-    _player = FlutterSoundPlayer();
-    _initializeRecorder();
-    _initializePlayer();
+    _speech = stt.SpeechToText();
+    _initializeStt();
   }
 
-  Future<void> _initializeRecorder() async {
-    try {
-      final PermissionStatus permissionStatus = await _getPermission();
-      if (permissionStatus != PermissionStatus.granted) {
-        print('Microphone permission not granted');
-        return;
-      }
-      await _recorder!.openRecorder();
-      print('Recorder initialized');
-    } catch (e) {
-      print('Error initializing recorder: $e');
-    }
-  }
-
-  Future<void> _initializePlayer() async {
-    try {
-      await _player!.openPlayer();
-      print('Player initialized');
-    } catch (e) {
-      print('Error initializing player: $e');
-    }
-  }
-
-  Future<PermissionStatus> _getPermission() async {
-    final PermissionStatus permission = await Permission.microphone.status;
-    if (permission != PermissionStatus.granted) {
-      final Map<Permission, PermissionStatus> permissionStatus =
-          await [Permission.microphone].request();
-      return permissionStatus[Permission.microphone] ?? PermissionStatus.denied;
-    } else {
-      return permission;
-    }
-  }
-
-  @override
-  void dispose() {
-    _recorder!.closeRecorder();
-    _player!.closePlayer();
-    super.dispose();
-  }
-
-  Future<String> _getFilePath() async {
-    final directory = await getApplicationDocumentsDirectory();
-    return '${directory.path}/$_currentQuestion.wav';
-  }
-
-  Future<void> _recordAudio() async {
-    try {
-      final path = await _getFilePath();
-      await _recorder!.startRecorder(
-        toFile: path,
-        codec: Codec.pcm16WAV,
-      );
-      print('Recording started');
-      _showRecordingDialog();
-    } catch (e) {
-      print('Error starting recording: $e');
-    }
-  }
-
-  Future<void> _stopRecording() async {
-    try {
-      await _recorder!.stopRecorder();
-      final path = await _getFilePath();
-      print('Recording stopped: $path');
-      if (File(path).existsSync()) {
-        setState(() {
-          _recordedAnswer = path;
-        });
-      } else {
-        print('Recording file not found at path: $path');
-      }
-    } catch (e) {
-      print('Error stopping recording: $e');
-    }
-  }
-
-  Future<void> _playRecordedAudio() async {
-    try {
-      if (_recordedAnswer.isNotEmpty && File(_recordedAnswer).existsSync()) {
-        await _player!.startPlayer(
-          fromURI: _recordedAnswer,
-          codec: Codec.pcm16WAV,
-          whenFinished: () {
-            setState(() {});
-          },
-        );
-        print('Playback started');
-      } else {
-        print('No recording found');
-      }
-    } catch (e) {
-      print('Error playing audio: $e');
-    }
-  }
-
-  void _showRecordingDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Recording in Progress'),
-          content: Text('Recording your answer.'),
-          actions: <Widget>[
-            ElevatedButton(
-              onPressed: () async {
-                await _stopRecording();
-                Navigator.of(context).pop();
-                await _transcribeAudio();
-              },
-              child: Text('Done'),
-            ),
-          ],
-        );
-      },
+  Future<void> _initializeStt() async {
+    bool available = await _speech.initialize(
+      onStatus: (status) => print('onStatus: $status'),
+      onError: (errorNotification) => print('onError: $errorNotification'),
     );
-  }
-
-  Future<void> _transcribeAudio() async {
-    final path = await _getFilePath();
-    if (!File(path).existsSync()) {
-      print('No recording found for transcription');
-      return;
-    }
-
-    final credentials = ServiceAccountCredentials.fromJson(r'''
-{
-  "type": "",
-  "project_id": "",
-  "private_key": "",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/your-service-account-email"
-}
-''');
-
-    final httpClient = await clientViaServiceAccount(
-        credentials, [speech.SpeechApi.cloudPlatformScope]);
-    final speechApi = speech.SpeechApi(httpClient);
-
-    final audioBytes = await File(path).readAsBytes();
-    final base64Audio = base64Encode(audioBytes);
-
-    final request = speech.RecognizeRequest.fromJson({
-      'config': {
-        'encoding': 'LINEAR16',
-        'sampleRateHertz': 16000,
-        'languageCode': 'en-US',
-      },
-      'audio': {
-        'content': base64Audio,
-      },
-    });
-
-    final response = await speechApi.speech.recognize(request);
-    final transcription = response.results!
-        .map((result) => result.alternatives!.first.transcript)
-        .join(' ');
-
-    setState(() {
-      _userTranscription = transcription;
-    });
-
-    _compareAnswers();
-  }
-
-  void _compareAnswers() {
-    if (_userTranscription.toLowerCase() == _correctAnswer.toLowerCase()) {
-      print('Correct Answer');
+    if (!available) {
+      print('Speech recognition is not available');
     } else {
-      print('Incorrect Answer');
+      print('Speech recognition available');
+    }
+  }
+
+  void _startListening() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (val) => print('onStatus: $val'),
+        onError: (val) => print('onError: $val'),
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _spokenText = val.recognizedWords;
+            print('Recognized words: $_spokenText');
+          }),
+          listenFor: Duration(seconds: 5),
+          pauseFor: Duration(seconds: 3),
+          partialResults: true,
+          onSoundLevelChange: (level) => print('Sound level: $level'),
+          cancelOnError: true,
+          listenMode: stt.ListenMode.confirmation,
+        );
+      } else {
+        print('The user has denied the use of speech recognition.');
+      }
+    }
+  }
+
+  void _stopListening() {
+    if (_isListening) {
+      _speech.stop();
+      setState(() => _isListening = false);
+    }
+  }
+
+  void _checkAnswer() {
+    if (_spokenText.toLowerCase() == _correctAnswer.toLowerCase()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Correct!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Incorrect!')),
+      );
     }
   }
 
@@ -211,34 +83,25 @@ class _WeeklyTestPageState extends State<WeeklyTestPage> {
       appBar: AppBar(
         title: Text('Weekly Test'),
       ),
-      body: Padding(
-        padding: EdgeInsets.all(20.0),
+      body: Center(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Question: $_currentQuestion',
-              style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Image.asset('assets/cat.png'), // Replace with your image asset
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isListening ? _stopListening : _startListening,
+              child: Text(_isListening ? 'Stop Listening' : 'Start Listening'),
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _recordAudio,
-              child: Text('Record Answer'),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _playRecordedAudio,
-              child: Text('Play Recorded Answer'),
+              onPressed: _checkAnswer,
+              child: Text('Check Answer'),
             ),
             SizedBox(height: 20),
             Text(
-              'Recorded Answer: $_recordedAnswer',
-              style: TextStyle(fontSize: 16.0),
-            ),
-            SizedBox(height: 20),
-            Text(
-              'Transcription: $_userTranscription',
-              style: TextStyle(fontSize: 16.0),
+              'Spoken Text: $_spokenText',
+              style: TextStyle(fontSize: 16),
             ),
           ],
         ),

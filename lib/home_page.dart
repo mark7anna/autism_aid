@@ -1,10 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'EditProfilePage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'about.dart';
 import 'weekly_test_page.dart';
 import 'performance_report_page.dart';
 import 'snap_it_page.dart';
 import 'talk_to_me_page.dart';
-import 'about.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -24,6 +26,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           _buildPanel(0),
           _buildPanel(1),
+          _buildPanel(2),
         ],
       ),
       bottomNavigationBar: BottomAppBar(
@@ -94,60 +97,37 @@ class _HomePageState extends State<HomePage> {
 }
 
 class LeftPanel extends StatelessWidget {
-  const LeftPanel({Key? key}) : super(key: key);
+  final bool visible;
+
+  const LeftPanel({Key? key, this.visible = true}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        hintColor: Colors.blue,
-      ),
-      child: Center(
-        child: ListView(
-          shrinkWrap: true,
-          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-          children: [
-            Text('Left Panel', style: TextStyle(fontSize: 20)),
-            SizedBox(height: 20),
-            _buildImageButton(
-              context,
-              'Talk to Me',
-              TalkToMePage(),
-              'assets/talktome.png',
-            ),
-            SizedBox(height: 10),
-            _buildImageButton(
-              context,
-              'Snap It',
-              SnapItPage(),
-              'assets/snapit.png',
-            ),
-            SizedBox(height: 10),
-            _buildImageButton(
-              context,
-              'Weekly Test',
-              WeeklyTestPage(),
-              'assets/test.png',
-            ),
-            SizedBox(height: 10),
-            _buildImageButton(
-              context,
-              'Performance Report',
-              PerformanceReportPage(),
-              'assets/report.png',
-            ),
-          ],
-        ),
+    return Center(
+      child: ListView(
+        shrinkWrap: true,
+        padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+        children: [
+          Text('Left Panel', style: TextStyle(fontSize: 20)),
+          SizedBox(height: 20),
+          _buildImageButton(
+              context, 'Talk to Me', TalkToMePage(), 'assets/talktome.png'),
+          SizedBox(height: 10),
+          _buildImageButton(
+              context, 'Snap It', SnapItPage(), 'assets/snapit.png'),
+          SizedBox(height: 10),
+          _buildImageButton(
+              context, 'Weekly Test', WeeklyTestPage(), 'assets/test.png'),
+          SizedBox(height: 10),
+          _buildImageButton(context, 'Performance Report',
+              PerformanceReportPage(), 'assets/report.png'),
+        ],
       ),
     );
   }
 
   Widget _buildImageButton(
-    BuildContext context,
-    String label,
-    Widget page,
-    String imagePath,
-  ) {
+      BuildContext context, String label, Widget page, String imagePath) {
     return Container(
       padding: EdgeInsets.all(10.0),
       decoration: BoxDecoration(
@@ -188,67 +168,72 @@ class LeftPanel extends StatelessWidget {
 }
 
 class MiddlePanel extends StatelessWidget {
-  const MiddlePanel({Key? key}) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        hintColor: Colors.blue,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AboutPage()),
-                );
-              },
-              child: Text('About'),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushReplacementNamed(context, '/');
-              },
-              icon: Icon(Icons.logout),
-              label: Text('Logout'),
-            ),
-          ],
-        ),
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AboutPage()),
+              );
+            },
+            child: Text('About'),
+          ),
+          SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, '/');
+            },
+            icon: Icon(Icons.logout),
+            label: Text('Logout'),
+          ),
+        ],
       ),
     );
   }
 }
 
 class RightPanel extends StatelessWidget {
-  const RightPanel({Key? key}) : super(key: key);
+  final String username = "John Doe";
+  final String email = "john.doe@example.com";
+  final String profileImagePath = "assets/profile.png"; // Replace with actual image path
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        hintColor: Colors.blue,
-      ),
-      child: Center(
-        child: ListView(
-          shrinkWrap: true,
-          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-          children: [
-            Center(
-              child: Text('Right Panel', style: TextStyle(fontSize: 20)),
+    return Center(
+      child: ListView(
+        shrinkWrap: true,
+        padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+        children: [
+          Center(
+            child: CircleAvatar(
+              radius: 50,
+              backgroundImage: AssetImage(profileImagePath),
             ),
-            SizedBox(height: 20),
-            Center(
-              child: Text('User Profile Content'),
+          ),
+          SizedBox(height: 20),
+          Center(
+            child: Text(
+              username,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
-            _buildEditProfileButton(context),
-          ],
-        ),
+          ),
+          SizedBox(height: 10),
+          Center(
+            child: Text(
+              email,
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+          SizedBox(height: 20),
+          _buildEditProfileButton(context),
+          SizedBox(height: 10), // Added space between buttons
+          _buildEditPasswordButton(context),
+        ],
       ),
     );
   }
@@ -263,6 +248,122 @@ class RightPanel extends StatelessWidget {
           );
         },
         child: Text('Edit Profile'),
+      ),
+    );
+  }
+
+  Widget _buildEditPasswordButton(BuildContext context) {
+    return Center(
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => EditPasswordPage()),
+          );
+        },
+        child: Text('Edit Password'),
+      ),
+    );
+  }
+}
+
+class EditProfilePage extends StatefulWidget {
+  @override
+  _EditProfilePageState createState() => _EditProfilePageState();
+}
+
+class _EditProfilePageState extends State<EditProfilePage> {
+  File? _imageFile;
+
+  Future<void> _pickImage() async {
+    final pickedFile =
+    await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = File(pickedFile.path);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Edit Profile'),
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: _pickImage,
+              child: CircleAvatar(
+                radius: 50,
+                backgroundImage:
+                _imageFile != null ? FileImage(_imageFile!) : null,
+                child: _imageFile == null
+                    ? Icon(Icons.camera_alt, size: 50)
+                    : null,
+              ),
+            ),
+            SizedBox(height: 20),
+            TextFormField(
+              decoration: InputDecoration(labelText: 'Username'),
+            ),
+            SizedBox(height: 20),
+            TextFormField(
+              decoration: InputDecoration(labelText: 'Email'),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // Implement profile update logic
+              },
+              child: Text('Update Profile'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class EditPasswordPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Edit Password'),
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextField(
+              decoration: InputDecoration(labelText: 'Current Password'),
+              obscureText: true,
+            ),
+            SizedBox(height: 20),
+            TextField(
+              decoration: InputDecoration(labelText: 'New Password'),
+              obscureText: true,
+            ),
+            SizedBox(height: 20),
+            TextField(
+              decoration: InputDecoration(labelText: 'Confirm New Password'),
+              obscureText: true,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // Implement password update logic
+              },
+              child: Text('Update Password'),
+            ),
+          ],
+        ),
       ),
     );
   }
